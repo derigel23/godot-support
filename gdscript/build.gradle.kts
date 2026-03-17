@@ -73,6 +73,16 @@ dependencies {
 intellijPlatform{
     instrumentCode = false
     buildSearchableOptions = buildConfiguration != "Debug"
+
+    publishing {
+        token = providers.environmentVariable("PUBLISH_TOKEN")
+        channels = providers.environmentVariable("PUBLISH_CHANNEL")
+            .map { listOf(it) }
+            .orElse(listOf("default"))
+        hidden = providers.environmentVariable("PUBLISH_HIDDEN")
+            .map { it.toBoolean() }
+            .orElse(false)
+    }
 }
 
 grammarKit {

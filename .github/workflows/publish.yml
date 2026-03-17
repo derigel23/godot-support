@@ -1,0 +1,69 @@
+# For syntax, see https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions
+# This workflow is triggered manually on the "Actions" tab on GitHub, and can be used to publish plugins to the JetBrains Marketplace.
+
+name: Publish
+
+on:
+    workflow_dispatch:
+        inputs:
+            prerelease:
+                description: 'Publish as pre-release (hidden on Marketplace)'
+                required: false
+                type: boolean
+                default: false
+            channel:
+                description: 'Marketplace channel to publish to (e.g. default, eap)'
+                required: false
+                type: string
+                default: 'default'
+
+permissions:
+    contents: read
+
+jobs:
+    # Make sure we only invoke known gradle-wrapper.jar files
+    gradleValidation:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Fetch Sources
+              uses: actions/checkout@v5
+            - name: Gradle Wrapper Validation
+              uses: gradle/actions/wrapper-validation@v5
+    rider:
+        needs: gradleValidation
+        runs-on: ubuntu-latest
+        env:
+            LOCAL_ENV_RUN: true
+            PUBLISH_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
+            PUBLISH_CHANNEL: ${{ github.event.inputs.channel }}
+            PUBLISH_HIDDEN: ${{ github.event.inputs.prerelease }}
+        steps:
+            - name: Fetch Sources
+              uses: actions/checkout@v5
+            - name: Setup .NET CLI
+              uses: actions/setup-dotnet@v1
+              with:
+                  dotnet-version: '8.0.x'
+            - name: Publish rider plugin
+              shell: bash
+              working-directory: rider
+              run: ./gradlew -PBuildConfiguration=Release -PbuildNumber=${{ github.run_number }} publishPlugin
+    gdscript:
+        needs: gradleValidation
+        runs-on: ubuntu-latest
+        env:
+            LOCAL_ENV_RUN: true
+            PUBLISH_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
+            PUBLISH_CHANNEL: ${{ github.event.inputs.channel }}
+            PUBLISH_HIDDEN: ${{ github.event.inputs.prerelease }}
+        steps:
+            - name: Fetch Sources
+              uses: actions/checkout@v5
+            - name: Build community
+              shell: bash
+              working-directory: community
+              run: ./gradlew -PBuildConfiguration=Release -PbuildNumber=${{ github.run_number }} buildPlugin
+            - name: Publish gdscript plugin
+              shell: bash
+              working-directory: gdscript
+              run: ./gradlew -PBuildConfiguration=Release -PbuildNumber=${{ github.run_number }} publishPlugin
